@@ -1,10 +1,4 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
+//react imports
 import React, {Fragment, useEffect, useState} from 'react';
 import MapView, {Marker} from 'react-native-maps';
 import {
@@ -17,12 +11,11 @@ import {
 	View,
 	Image,
 } from 'react-native';
-
+import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 const {MainReactModule} = NativeModules;
 
-import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
-
-import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
+//api call imports
+import updateBuses from './api/updateBuses';
 
 check(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION)
 	.then(result => {
@@ -56,49 +49,19 @@ check(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION)
 		console.error('Error checking location permission', error);
 	});
 
-const {MapModule} = NativeModules;
-
 function App() {
 	const [curPos, setCurPos] = useState({
-		latitude: 53.47139,
-		longitude: -113.34756,
+		latitude: 53.456617,
+		longitude: -113.516498,
 		latitudeDelta: 0.008,
 		longitudeDelta: 0.008,
 	});
 
-	const [busList, setBusList] = useState({});
+	const [busList, setBusList] = useState([]);
+	const [routes, setRoutes] = useState([]);
+	var moving = false;
 
-	useEffect(() => {
-		console.log('fetching');
-		let req = new XMLHttpRequest();
-		req.open(
-			'GET',
-			'http://gtfs.edmonton.ca/TMGTFSRealTimeWebService/Vehicle/VehiclePositions.pb',
-			true,
-		);
-		req.responseType = 'arraybuffer';
-		req.send();
-		req.onload = function () {
-			const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
-				new Uint8Array(req.response),
-			);
-			let curBusList = {};
-			feed.entity.forEach(entity => {
-				// yes it is a string ight
-				let routeId = entity.vehicle?.trip?.routeId;
-				if (curBusList.hasOwnProperty[routeId] === undefined) {
-					curBusList[routeId] = [];
-				}
-				curBusList[routeId].push({
-					position: entity.vehicle.position,
-					id: entity.vehicle.id,
-				});
-			});
-
-			setBusList(curBusList);
-			console.log('done fetching');
-		};
-	}, []);
+	useEffect(() => {}, []);
 
 	return (
 		<SafeAreaView>
@@ -106,7 +69,6 @@ function App() {
 				className="z-10 top-0 pb-[100vh] left-0 right-0 absolute"
 				initialRegion={curPos}
 				showsUserLocation={true}
-				// pitchEnabled
 				onUserLocationChange={loc => {
 					setCurPos({
 						latitude: loc.latitude,
@@ -114,96 +76,44 @@ function App() {
 						latitudeDelta: 0.008,
 						longitudeDelta: 0.008,
 					});
+				}}
+				onMapReady={() => {
+					updateBuses(setBusList);
+					setInterval(updateBuses, 10000, setBusList);
+				}}
+				onRegionChange={() => (moving = true)}
+				onRegionChangeComplete={loc => {
+					moving = false;
+					setTimeout(
+						updateRoutesIP,
+						500,
+						loc.latitude,
+						loc.longitude,
+						setRoutes,
+					);
 				}}>
-				{Object.keys(busList).map(routeId => {
-					console.log('fjeioafjeaoijef');
-					return busList[routeId].map(bus => {
-						return (
-							<Marker
-								key={Math.random()}
-								coordinate={bus.position}
-								anchor={{x: 0.5, y: 0.5}}
-								title={bus.id}
-								description="Retrived at 7:34">
-								<View>
-									<Image
-										rotation={bus.position.bearing - 270}
-										className="w-10 h-10"
-										source={require('./images/bus.png')}
-									/>
-									<Text className="mt-[-8] text-blue-900 place-self-center text-center">
-										{routeId}
-									</Text>
-								</View>
-							</Marker>
-						);
-					});
+				{busList.map(bus => {
+					return (
+						<Marker
+							key={bus.id}
+							coordinate={bus.position}
+							anchor={{x: 0.5, y: 0.3}}>
+							<View>
+								<Image
+									rotation={bus.position.bearing - 270}
+									className="w-10 h-10"
+									source={require('./images/bus.png')}
+								/>
+								<Text className="mt-[-6] text-blue-900 place-self-center text-center">
+									{bus.routeId}
+								</Text>
+							</View>
+						</Marker>
+					);
 				})}
 			</MapView>
 		</SafeAreaView>
 	);
 }
-
-const mapStyle = [
-	// {elementType: 'geometry', stylers: [{color: '#242f3e'}]},
-	// {elementType: 'labels.text.fill', stylers: [{color: '#746855'}]},
-	// {elementType: 'labels.text.stroke', stylers: [{color: '#242f3e'}]},
-	// {
-	// featureType: 'administrative.locality',
-	// elementType: 'labels.text.fill',
-	// stylers: [{color: '#d59563'}],
-	// },
-	// {
-	// featureType: 'poi',
-	// elementType: 'labels.text.fill',
-	// stylers: [{color: '#d59563'}],
-	// },
-	// {
-	// featureType: 'poi.park',
-	// elementType: 'geometry',
-	// stylers: [{color: '#263c3f'}],
-	// },
-	// {
-	// featureType: 'poi.park',
-	// elementType: 'labels.text.fill',
-	// stylers: [{color: '#6b9a76'}],
-	// },
-	// {
-	// featureType: 'road',
-	// elementType: 'geometry',
-	// stylers: [{color: '#38414e'}],
-	// },
-	// {
-	// featureType: 'road',
-	// elementType: 'geometry.stroke',
-	// stylers: [{color: '#212a37'}],
-	// },
-	// {
-	// featureType: 'road',
-	// elementType: 'labels.text.fill',
-	// stylers: [{color: '#9ca5b3'}],
-	// },
-	// {
-	// featureType: 'road.highway',
-	// elementType: 'geometry',
-	// stylers: [{color: '#746855'}],
-	// },
-	// {
-	// featureType: 'road.highway',
-	// elementType: 'geometry.stroke',
-	// stylers: [{color: '#1f2835'}],
-	// },
-	// {
-	// featureType: 'road.highway',
-	// elementType: 'labels.text.fill',
-	// stylers: [{color: '#f3d19c'}],
-	// },
-	// {
-	// featureType: 'transit',
-	// elementType: 'geometry',
-	// stylers: [{color: '#2f3948'}],
-];
-
-const styles = StyleSheet.create({});
 
 export default App;
