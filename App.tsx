@@ -16,7 +16,9 @@ const {MainReactModule} = NativeModules;
 
 //api call imports
 import updateBuses from './api/updateBuses';
+import updateRoutesIP from './api/updateRoutesIP';
 
+//permission checking
 check(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION)
 	.then(result => {
 		switch (result) {
@@ -49,6 +51,39 @@ check(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION)
 		console.error('Error checking location permission', error);
 	});
 
+check(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE)
+	.then(result => {
+		switch (result) {
+			case RESULTS.UNAVAILABLE:
+				console.log(
+					'This feature is not available (on this device / in this context)',
+				);
+				break;
+			case RESULTS.DENIED:
+				request(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE)
+					.then(result => {
+						console.log('The permission is granted');
+					})
+					.catch(error => {
+						console.error('Error requesting location permission', error);
+					});
+				break;
+			case RESULTS.LIMITED:
+				console.log('The permission is limited: some actions are possible');
+				break;
+			case RESULTS.GRANTED:
+				console.log('The permission is granted');
+				break;
+			case RESULTS.BLOCKED:
+				console.log('The permission is denied and not requestable anymore');
+				break;
+		}
+	})
+	.catch(error => {
+		console.error('Error checking location permission', error);
+	});
+
+//main app
 function App() {
 	const [curPos, setCurPos] = useState({
 		latitude: 53.456617,
@@ -56,12 +91,9 @@ function App() {
 		latitudeDelta: 0.008,
 		longitudeDelta: 0.008,
 	});
-
 	const [busList, setBusList] = useState([]);
 	const [routes, setRoutes] = useState([]);
 	var moving = false;
-
-	useEffect(() => {}, []);
 
 	return (
 		<SafeAreaView>
@@ -79,14 +111,20 @@ function App() {
 				}}
 				onMapReady={() => {
 					updateBuses(setBusList);
+					updateRoutesIP(curPos.latitude, curPos.longitude, setRoutes);
 					setInterval(updateBuses, 10000, setBusList);
 				}}
 				onRegionChange={() => (moving = true)}
 				onRegionChangeComplete={loc => {
 					moving = false;
 					setTimeout(
-						updateRoutesIP,
-						500,
+						(lat, lng, setRoutes) => {
+							if (moving) return;
+							moving = true;
+							console.log('request sending');
+							updateRoutesIP(lat, lng, setRoutes).then(() => (moving = false));
+						},
+						1000,
 						loc.latitude,
 						loc.longitude,
 						setRoutes,
