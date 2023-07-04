@@ -1,1 +1,1 @@
-.
+ETS bus tracker and route planner using the city of Edmonton's open api. This was created as an alternative mobile app (support for andriod + ios) to a certain other app that was monetized. Optimizations will come later to try and reduce data usage as well as speed up preformance on older devices after completion of main app.
