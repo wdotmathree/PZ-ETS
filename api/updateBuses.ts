@@ -14,7 +14,7 @@ function updateBuses(setBusList) {
 			new Uint8Array(req.response),
 		);
 		let curBusList: Object[] = [];
-		feed.entity.forEach((entity:any) => {
+		feed.entity.forEach((entity: any) => {
 			if (!entity.vehicle) return;
 			let routeId = entity.vehicle?.trip?.routeId;
 			if (routeId == undefined) return;
