@@ -15,8 +15,14 @@ import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 const {MainReactModule} = NativeModules;
 
 //api call imports
-import updateBuses from './api/updateBuses';
+import updateBusesIP from './api/updateBusesIP';
 import updateRoutesIP from './api/updateRoutesIP';
+
+//constants
+const RANGE = 0.005;
+const BUS_ICON = require('./images/bus.png');
+const STOP_ICON = require('./images/stop.png');
+const CROSSHAIR_ICON = require('./images/crosshair.png');
 
 //permission checking
 check(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION)
@@ -93,6 +99,7 @@ function App() {
 	});
 	const [busList, setBusList] = useState([]);
 	const [routes, setRoutes] = useState([]);
+	const [stopList, setStopList] = useState([]);
 	var moving = false;
 
 	return (
@@ -110,11 +117,27 @@ function App() {
 					});
 				}}
 				onMapReady={() => {
-					updateBuses(setBusList);
-					updateRoutesIP(curPos.latitude, curPos.longitude, setRoutes);
-					setInterval(updateBuses, 10000, setBusList);
+					updateBusesIP(curPos.latitude, curPos.longitude, RANGE, setBusList);
+					updateRoutesIP(
+						curPos.latitude,
+						curPos.longitude,
+						RANGE,
+						setRoutes,
+						setStopList,
+					);
+					setInterval(
+						updateBusesIP,
+						10000,
+						curPos.latitude,
+						curPos.longitude,
+						RANGE,
+						setBusList,
+					);
 				}}
-				onRegionChange={() => (moving = true)}
+				onRegionChange={loc => {
+					moving = true;
+					setCurPos(loc);
+				}}
 				onRegionChangeComplete={loc => {
 					moving = false;
 					setTimeout(
@@ -122,15 +145,33 @@ function App() {
 							if (moving) return;
 							moving = true;
 							console.log('request sending');
-							updateRoutesIP(lat, lng, setRoutes).then(() => (moving = false));
+							updateRoutesIP(lat, lng, RANGE, setRoutes, setStopList).then(
+								() => (moving = false),
+							);
+							updateBusesIP(
+								curPos.latitude,
+								curPos.longitude,
+								RANGE,
+								setBusList,
+							);
 						},
-						1000,
+						100,
 						loc.latitude,
 						loc.longitude,
 						setRoutes,
 					);
 				}}>
-				{busList.map(bus => {
+				<Marker
+					coordinate={{
+						longitude: curPos.longitude,
+						latitude: curPos.latitude,
+					}}
+					anchor={{x: 0.5, y: 0.5}}>
+					<View>
+						<Image className="w-5 h-5" source={CROSSHAIR_ICON} />
+					</View>
+				</Marker>
+				{busList.map((bus: any) => {
 					return (
 						<Marker
 							key={bus.id}
@@ -140,11 +181,30 @@ function App() {
 								<Image
 									rotation={bus.position.bearing - 270}
 									className="w-10 h-10"
-									source={require('./images/bus.png')}
+									source={BUS_ICON}
 								/>
 								<Text className="mt-[-6] text-blue-900 place-self-center text-center">
 									{bus.routeId}
 								</Text>
+							</View>
+						</Marker>
+					);
+				})}
+				{stopList.map((stop: any) => {
+					return (
+						<Marker
+							key={stop.stop_id}
+							coordinate={{
+								latitude: parseFloat(stop.stop_lat),
+								longitude: parseFloat(stop.stop_lon),
+							}}
+							onPress={() => console.log(stop.stop_name)}
+							anchor={{x: 0.5, y: 0.5}}>
+							<View>
+								<Image className="w-5 h-5" source={STOP_ICON} />
+								{/* <Text className="mt-[-6] text-blue-900 place-self-center text-center">
+									{stop.stop_name}
+								</Text> */}
 							</View>
 						</Marker>
 					);
